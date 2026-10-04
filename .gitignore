@@ -1,0 +1,9 @@
+# Jangan pernah ikutkan berkas berikut: berisi nama file pribadi & data perangkat.
+rename_log.txt
+inv_raw.txt
+inv_clean.txt
+inv2_raw.txt
+inv2_clean.txt
+verify/
+verify2/
+*.log
