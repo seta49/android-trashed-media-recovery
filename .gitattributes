@@ -1,0 +1,5 @@
+# Skrip shell harus tetap LF di semua mesin — kalau ikut CRLF (khas Windows),
+# file ini gagal jalan saat di-push ke perangkat Android.
+*.sh text eol=lf
+*.py text eol=lf
+*.md text=auto
