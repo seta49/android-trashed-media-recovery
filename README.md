@@ -10,11 +10,50 @@ Ditulis dari kasus nyata: **2.085 file (56,29 GB)** lenyap dari galeri bawaan se
 
 - Foto/video hilang dari galeri bawaan; entri yang masih tampil tidak bisa dibuka ("error", hanya thumbnail sisa).
 - Terjadi setelah menekan **Undo backup** di Google Photos ketika kuota Google One habis/berhenti.
-- Keterangan di layar justru menyatakan *"foto dan video di perangkat tidak akan terpengaruh"*.
+- Keterangan di layar justru menyatakan *"foto dan video di perangkat tidak akan terpengaruh"* — teks persisnya ada di bagian 2.
 - File manager yang bisa menampilkan file tersembunyi **masih menemukan filenya**, dengan nama berawalan `.trashed-<angka>-`.
 - Sisa ruang penyimpanan tidak bertambah walau media "hilang" — karena datanya masih ada, cuma disembunyikan.
 
-## 2. Apa yang sebenarnya terjadi
+## 2. Alur yang ditekan dan teks layar yang menyesatkan
+
+Pemicunya adalah fitur **Undo backup** di Google Photos, letaknya di:
+
+`Profil → Setelan Google Photos → Backup → Other options → Undo backup`
+
+dengan keterangan pendek: *"Delete photos from your account without removing them from this device"*.
+
+![Menu Other options → Undo backup](docs/images/undo-backup-01-menu.png)
+
+Menekan baris itu memunculkan layar konfirmasi **"Undo device backup"**. Isinya persis seperti ini:
+
+> **Before you continue, review the following important information:**
+>
+> You will undo backup for this account:
+> `<alamat email akun>` *(disensor pada tangkapan layar di bawah)*
+>
+> **Any photos, videos, or other content on your device won't be deleted or affected**
+>
+> All the photos & videos that are currently found on this device will be removed from Google Photos
+>
+> These photos will also be removed from albums, shared albums, search results, and memories
+>
+> Photos & videos in Locked Folder and in device folders will also be included
+>
+> Backup will be turned off automatically when you delete
+>
+> ☐ I understand my photos and videos from this device will be deleted from Google Photos
+>
+> `[ Delete Google Photos backup ]`
+
+![Layar konfirmasi Undo device backup](docs/images/undo-backup-02-konfirmasi.png)
+
+*(Alamat email pada tangkapan layar disensor.)*
+
+Kalimat kuncinya: **"Any photos, videos, or other content on your device won't be deleted or affected"**. Kenyataannya, 2.085 file milik perangkat justru dipindahkan ke tempat sampah sistem (`.trashed-*`) dan hilang dari galeri.
+
+Catatan soal wording-nya, supaya adil sekaligus jelas: secara teknis file **tidak "deleted"** — hanya dipindahkan ke sampah sistem (berganti nama, disembunyikan, `IS_TRASHED=1`) dan akan dimusnahkan otomatis setelah 30 hari. Jadi kalimat "won't be deleted" masih bisa dianggap benar dari sisi aplikasi, sementara bagi pengguna hasilnya identik dengan terhapus. Yang lebih sulit dibela adalah kata **"or affected"**: layar yang sama juga menyatakan *"Photos & videos in Locked Folder and in device folders will also be included"* — artinya `Undo backup` memang menyentuh folder perangkat, dan klaim "won't be affected" tidak mencerminkan apa yang benar-benar terjadi.
+
+## 3. Apa yang sebenarnya terjadi
 
 Android 11+ punya **tempat sampah tingkat sistem** di MediaStore. Ketika sebuah aplikasi memindahkan file media ke sampah, `MediaProvider` mengganti nama file *di tempat* menjadi:
 
@@ -29,13 +68,13 @@ Android 11+ punya **tempat sampah tingkat sistem** di MediaStore. Ketika sebuah 
 
 Artinya: selama file masih berwujud di penyimpanan, pemulihannya **hanya soal mengembalikan nama** — tidak perlu cloud, tidak perlu root, tidak perlu alat recovery.
 
-## 3. Kenapa restore dari Google Photos bukan jalan keluar
+## 4. Kenapa restore dari Google Photos bukan jalan keluar
 
 - Restore mengembalikan salinan **ke cloud**, jadi butuh kuota. Kalau langganan berhenti dan kuota penuh, restore gagal atau hanya bisa sebagian.
 - Padahal file lokalnya masih ada — pemulihan lokal sama sekali tidak menyentuh kuota.
 - Yang benar-benar butuh kuota hanya item sampah yang **tidak punya file lokal** (foto lama / yang dulu pernah dilepas dari perangkat).
 
-## 4. Prasyarat
+## 5. Prasyarat
 
 1. **platform-tools (adb)** di komputer — unduhan resmi Google:
    <https://dl.google.com/android/repository/platform-tools-latest-windows.zip>
@@ -44,7 +83,7 @@ Artinya: selama file masih berwujud di penyimpanan, pemulihannya **hanya soal me
 3. Colok kabel, pilih mode **Transfer File**, lalu **izinkan dialog "Allow USB debugging"** di HP (centang "selalu izinkan").
 4. Pastikan terdeteksi: `adb devices` harus menampilkan status `device`, **bukan** `unauthorized`.
 
-## 5. Prosedur
+## 6. Prosedur
 
 ```bash
 ADB=./platform-tools/adb.exe          # linux/mac: ./platform-tools/adb
@@ -73,7 +112,7 @@ python scripts/verify.py ./verify
 
 Skrip `restore.sh` menulis log lengkap `nama_lama|nama_baru` untuk setiap file, sehingga seluruh operasi bisa ditelusuri atau diulang.
 
-## 6. Verifikasi — jangan hanya percaya "berhasil"
+## 7. Verifikasi — jangan hanya percaya "berhasil"
 
 Empat hal yang wajib dicek:
 
@@ -85,7 +124,7 @@ Empat hal yang wajib dicek:
 
 Pada kasus yang jadi dasar dokumen ini: `OK=2085 SKIP=0 FAIL=0`, sisa sampah `0`, dan 5 sampel lintas jenis lulus uji header **dan** ukurannya identik.
 
-## 7. Jebakan yang paling sering bikin gagal
+## 8. Jebakan yang paling sering bikin gagal
 
 1. **`find /sdcard` mengembalikan nol hasil.** `/sdcard` adalah symlink dan `toybox find` tidak menelusuri argumen awal yang berupa symlink. Selalu pakai path aslinya: `/storage/emulated/0`.
 2. **Backup lewat Windows Explorer/MTP terlihat "sukses" padahal tidak lengkap.** MTP memakai MediaStore, dan item bertanda sampah disembunyikan. File terpenting justru yang tidak ikut tercopy. Pakai file manager HP dengan "tampilkan file tersembunyi" aktif, atau `adb pull`.
@@ -96,7 +135,7 @@ Pada kasus yang jadi dasar dokumen ini: `OK=2085 SKIP=0 FAIL=0`, sisa sampah `0`
 7. **Jangan beli/instal aplikasi "photo recovery"** untuk kasus ini. Filenya tidak terhapus, hanya berganti nama — alat recovery tidak diperlukan, dan sebagian besar aplikasi semacam itu menyesatkan. Pemulihan file yang benar-benar terhapus dari penyimpanan internal Android modern praktis tidak mungkin tanpa root.
 8. **`adb devices` menampilkan `unauthorized`?** Itu artinya HP belum memberi izin; tidak ada perintah yang bisa jalan sampai dialog "Allow USB debugging" di HP ditekan.
 
-## 8. Hasil pada kasus ini
+## 9. Hasil pada kasus ini
 
 | Folder | Jumlah file dipulihkan |
 |---|---|
@@ -116,7 +155,7 @@ Pada kasus yang jadi dasar dokumen ini: `OK=2085 SKIP=0 FAIL=0`, sisa sampah `0`
 
 Jenis file: 1.241 `.jpg`, 646 `.mp4`, 120 `.heic`, 58 `.png`, 15 `.dng`, 4 `.gif`, 1 `.webp`.
 
-## 9. Referensi
+## 10. Referensi
 
 - AOSP MediaProvider `util/FileUtils.java` — pola dan retensi nama file sampah.
   <https://android.googlesource.com/platform/packages/providers/MediaProvider/>
