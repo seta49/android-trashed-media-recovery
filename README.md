@@ -4,6 +4,8 @@ Panduan dan skrip untuk kasus foto/video yang "hilang" dari galeri Android — p
 
 Ditulis dari kasus nyata: **2.085 file (56,29 GB)** lenyap dari galeri bawaan setelah backup Google Photos di-*undo* karena kuota penyimpanan penuh. Semua file dikembalikan **tanpa langganan cloud, tanpa aplikasi recovery pihak ketiga, tanpa root** — cukup lewat adb.
 
+Seluruh prosesnya dijalankan oleh **Hermes Agent** dengan model **`deepseek/deepseek-v4.1-flash`** (rincian di bagian 10).
+
 ---
 
 ## 1. Gejala
@@ -155,7 +157,22 @@ Pada kasus yang jadi dasar dokumen ini: `OK=2085 SKIP=0 FAIL=0`, sisa sampah `0`
 
 Jenis file: 1.241 `.jpg`, 646 `.mp4`, 120 `.heic`, 58 `.png`, 15 `.dng`, 4 `.gif`, 1 `.webp`.
 
-## 10. Referensi
+## 10. Cara kasus ini dieksekusi
+
+Seluruh pengerjaan pada kasus ini — dari penelusuran gejala sampai verifikasi akhir — dijalankan oleh **Hermes Agent** (agent desktop dari Nous Research) dengan model **`deepseek/deepseek-v4.1-flash`** lewat gateway `commandcode`, pada Windows 11.
+
+Urutan yang dikerjakan agent:
+
+1. Memasang `platform-tools` (adb) di komputer dan memeriksa `adb devices`.
+2. Memandu aktivasi USB debugging dan otorisasi perangkat — bagian ini memang hanya bisa ditekan manusia di layar HP, dan agent berhenti menunggu sampai perangkat berstatus `device`.
+3. Menjalankan inventaris: `find /storage/emulated/0 -name '.trashed-*' -type f` ditambah `stat -c '%s|%Y'` per file → terhitung 2.085 file / 56,29 GB, direkap per folder dan per jenis file.
+4. Menjalankan pemulihan nama secara massal di dalam perangkat lewat skrip shell yang dikirim dengan `adb push` dan dijalankan dengan `adb shell sh`, sekaligus menulis log `nama_lama|nama_baru`, lalu menarik log itu kembali ke komputer dengan `adb pull`.
+5. Memverifikasi hasil: sisa file bertanda sampah = 0, jumlah baris log = jumlah file, dan 5 sampel lintas jenis (JPEG, HEIC, PNG, MP4, WebP) ditarik ke komputer untuk diuji header dan dibandingkan ukurannya dengan inventaris.
+6. Memaksa pengindeksan ulang media (`content call ... scan_volume`) dan menyusun dokumentasi ini.
+
+Skrip di folder `scripts/` adalah versi bersih dari yang benar-benar dipakai; semua angka di dokumen ini berasal dari keluaran nyata, bukan perkiraan.
+
+## 11. Referensi
 
 - AOSP MediaProvider `util/FileUtils.java` — pola dan retensi nama file sampah.
   <https://android.googlesource.com/platform/packages/providers/MediaProvider/>
